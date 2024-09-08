@@ -1,0 +1,149 @@
+l<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地震資料顯示</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .earthquake-card {
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .earthquake-card h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .earthquake-card p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .earthquake-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            font-size: 1.2em;
+            color: #007bff;
+        }
+        .credits {
+            text-align: center;
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>最新地震資料</h1>
+        <div id="loading" class="loading">正在加載資料...</div>
+        <div id="earthquakeData"></div>
+        <div class="credits">
+            <p>製作：ChatGPT</p>
+            <p>資料來源：中央氣象署</p>
+        </div>
+    </div>
+
+    <script>
+        const apiUrls = [
+            'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=CWA-19B695DB-613E-496B-A962-8A9399FD36A3&format=JSON',
+            'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=CWA-19B695DB-613E-496B-A962-8A9399FD36A3&format=JSON&AreaName=%E5%AE%9C%E8%98%AD%E7%B8%A3,%E8%8A%B1%E8%93%AE%E7%B8%A3,%E8%87%BA%E6%9D%B1%E7%B8%A3,%E6%BE%8E%E6%B9%96%E7%B8%A3,%E9%87%91%E9%96%80%E7%B8%A3,%E9%80%A3%E6%B1%9F%E7%B8%A3,%E8%87%BA%E5%8C%97%E5%B8%82,%E6%96%B0%E5%8C%97%E5%B8%82,%E6%A1%83%E5%9C%92%E5%B8%82,%E8%87%BA%E4%B8%AD%E5%B8%82,%E8%87%BA%E5%8D%97%E5%B8%82,%E9%AB%98%E9%9B%84%E5%B8%82,%E5%9F%BA%E9%9A%86%E5%B8%82,%E6%96%B0%E7%AB%B9%E7%B8%A3,%E6%96%B0%E7%AB%B9%E5%B8%82,%E8%8B%97%E6%A0%97%E7%B8%A3,%E5%BD%B0%E5%8C%96%E7%B8%A3,%E5%8D%97%E6%8A%95%E7%B8%A3,%E9%9B%B2%E6%9E%97%E7%B8%A3,%E5%98%89%E7%BE%A9%E7%B8%A3,%E5%98%89%E7%BE%A9%E5%B8%82,%E5%B1%8F%E6%9D%B1%E7%B8%A3'
+        ];
+
+        function fetchEarthquakeData() {
+            Promise.all(apiUrls.map(url => fetch(url).then(response => response.json())))
+                .then(dataArrays => {
+                    let earthquakes = [];
+
+                    dataArrays.forEach(data => {
+                        const records = data.records.Earthquake || [];
+                        earthquakes = earthquakes.concat(records);
+                    });
+
+                    // 排序
+                    earthquakes.sort((a, b) => {
+                        const dateA = new Date(a.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
+                        const dateB = new Date(b.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
+                        return dateB - dateA;
+                    });
+
+                    const output = earthquakes.map(earthquake => {
+                        // 確保 EarthquakeNo 是字串
+                        const earthquakeNo = String(earthquake.EarthquakeNo);
+                        const earthquakeNoDisplay = earthquakeNo === '113000' ? '小區域有感地震' : earthquakeNo || '無編號';
+
+                        // 提取 EarthquakeInfo 中的各項數據
+                        const earthquakeInfo = earthquake.EarthquakeInfo || {};
+                        console.log('EarthquakeInfo 內容:', earthquakeInfo); // 打印 EarthquakeInfo 內容
+
+                        const originTime = earthquakeInfo.OriginTime || '無資料';
+                        const focalDepth = earthquakeInfo.FocalDepth !== undefined ? earthquakeInfo.FocalDepth.toFixed(2) + ' 公里' : '無資料';
+
+                        // 提取 EarthquakeMagnitude 中的數據
+                        const earthquakeMagnitude = earthquakeInfo.EarthquakeMagnitude || {};
+                        const magnitudeValue = earthquakeMagnitude.MagnitudeValue || '無資料';
+
+                        // 提取 Epicenter 中的數據
+                        const epicenter = earthquakeInfo.Epicenter || {};
+                        const location = epicenter.Location || '無資料';
+                        const epicenterLatitude = epicenter.EpicenterLatitude || '無資料';
+                        const epicenterLongitude = epicenter.EpicenterLongitude || '無資料';
+
+                        // 提取 ReportImageURI 中的數據
+                        const reportImageURI = earthquake.ReportImageURI || '';
+
+                        return `
+                            <div class="earthquake-card">
+                                <h2>地震報告編號: ${earthquakeNoDisplay}</h2>
+                                <p><strong>報告類型:</strong> ${earthquake.ReportType || '無資料'}</p>
+                                <p><strong>報告內容:</strong> ${earthquake.ReportContent || '無資料'}</p>
+                                <p><strong>發生時間:</strong> ${originTime}</p>
+                                <p><strong>震源深度:</strong> ${focalDepth}</p>
+                                <p><strong>震度規模:</strong> ${magnitudeValue}</p>
+                                <p><strong>位置描述:</strong> ${location}</p>
+                                <p><strong>震中緯度:</strong> ${epicenterLatitude}</p>
+                                <p><strong>震中經度:</strong> ${epicenterLongitude}</p>
+                                ${reportImageURI ? `<p><strong>地震報告圖:</strong></p><img src="${reportImageURI}" alt="地震報告圖">` : ''}
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('earthquakeData').innerHTML = output;
+                    document.getElementById('loading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Fetch 錯誤:', error);
+                    document.getElementById('loading').innerText = `資料加載失敗，錯誤: ${error.message}`;
+                });
+        }
+
+        // 初次加載資料
+        fetchEarthquakeData();
+
+        // 每 10 秒自動刷新
+        setInterval(fetchEarthquakeData, 10000);
+    </script>
+</body>
+</html>
