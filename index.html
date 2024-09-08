@@ -1,15 +1,15 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地震資料顯示</title>
+    <title>地震報告</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f0f4f8;
+            background-color: #f7f9fc;
             color: #333;
         }
         .container {
@@ -18,51 +18,66 @@ l<!DOCTYPE html>
             padding: 20px;
         }
         h1 {
-            color: #0056b3;
+            color: #007bff;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            letter-spacing: 1px;
         }
         .earthquake-card {
             background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .earthquake-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
         .earthquake-card h2 {
             color: #333;
+            font-size: 1.5rem;
             margin-top: 0;
         }
         .earthquake-card p {
             margin: 10px 0;
             line-height: 1.6;
         }
+        .earthquake-card p strong {
+            color: #555;
+        }
         .earthquake-card img {
             max-width: 100%;
             height: auto;
-            border-radius: 4px;
+            border-radius: 8px;
+            margin-top: 10px;
         }
         .loading {
             text-align: center;
-            font-size: 1.2em;
+            font-size: 1.5em;
             color: #007bff;
+            margin-top: 50px;
         }
         .credits {
             text-align: center;
             font-size: 0.9em;
-            color: #555;
-            margin-top: 40px;
+            color: #777;
+            margin-top: 50px;
+            padding: 20px;
+            border-top: 1px solid #ddd;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>最新地震資料</h1>
+        <h1>地震報告</h1>
         <div id="loading" class="loading">正在加載資料...</div>
         <div id="earthquakeData"></div>
         <div class="credits">
-            <p>製作：ChatGPT</p>
-            <p>資料來源：中央氣象署</p>
+            <p>製作：XQuake</p>
+            <p>資料來源：中央氣象署 CWA</p>
         </div>
     </div>
 
@@ -90,28 +105,17 @@ l<!DOCTYPE html>
                     });
 
                     const output = earthquakes.map(earthquake => {
-                        // 確保 EarthquakeNo 是字串
                         const earthquakeNo = String(earthquake.EarthquakeNo);
                         const earthquakeNoDisplay = earthquakeNo === '113000' ? '小區域有感地震' : earthquakeNo || '無編號';
-
-                        // 提取 EarthquakeInfo 中的各項數據
                         const earthquakeInfo = earthquake.EarthquakeInfo || {};
-                        console.log('EarthquakeInfo 內容:', earthquakeInfo); // 打印 EarthquakeInfo 內容
-
                         const originTime = earthquakeInfo.OriginTime || '無資料';
                         const focalDepth = earthquakeInfo.FocalDepth !== undefined ? earthquakeInfo.FocalDepth.toFixed(2) + ' 公里' : '無資料';
-
-                        // 提取 EarthquakeMagnitude 中的數據
                         const earthquakeMagnitude = earthquakeInfo.EarthquakeMagnitude || {};
                         const magnitudeValue = earthquakeMagnitude.MagnitudeValue || '無資料';
-
-                        // 提取 Epicenter 中的數據
                         const epicenter = earthquakeInfo.Epicenter || {};
                         const location = epicenter.Location || '無資料';
                         const epicenterLatitude = epicenter.EpicenterLatitude || '無資料';
                         const epicenterLongitude = epicenter.EpicenterLongitude || '無資料';
-
-                        // 提取 ReportImageURI 中的數據
                         const reportImageURI = earthquake.ReportImageURI || '';
 
                         return `
@@ -139,10 +143,7 @@ l<!DOCTYPE html>
                 });
         }
 
-        // 初次加載資料
         fetchEarthquakeData();
-
-        // 每 10 秒自動刷新
         setInterval(fetchEarthquakeData, 10000);
     </script>
 </body>
