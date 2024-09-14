@@ -3,76 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地震報告</title>
+    <title>地震報告 ERV</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f7f9fc;
-            color: #333;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #007bff;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5rem;
-            letter-spacing: 1px;
-        }
-        .earthquake-card {
-            background: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 25px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .earthquake-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }
-        .earthquake-card h2 {
-            color: #333;
-            font-size: 1.5rem;
-            margin-top: 0;
-        }
-        .earthquake-card p {
-            margin: 10px 0;
-            line-height: 1.6;
-        }
-        .earthquake-card p strong {
-            color: #555;
-        }
-        .earthquake-card img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .loading {
-            text-align: center;
-            font-size: 1.5em;
-            color: #007bff;
-            margin-top: 50px;
-        }
-        .credits {
-            text-align: center;
-            font-size: 0.9em;
-            color: #777;
-            margin-top: 50px;
-            padding: 20px;
-            border-top: 1px solid #ddd;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    overflow-x: hidden;
+}
+
+.container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1 {
+    color: #007bff;
+    font-size: 3.2rem; /* 更大字體，適應高解析度 */
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 40px; /* 增加間距 */
+    letter-spacing: 1px;
+    animation: fadeIn 1s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.earthquake-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px; /* 增加內部填充 */
+    margin-bottom: 25px; /* 增加卡片之間的距離 */
+    width: 100%;
+    max-width: 800px; /* 調整寬度以適應更大的屏幕 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.earthquake-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.earthquake-card h2 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    color: #007bff;
+}
+
+.earthquake-card p {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.earthquake-card p strong {
+    color: #007bff;
+}
+
+.earthquake-card img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 15px;
+    border: 1px solid #ddd;
+}
+
+.loading {
+    text-align: center;
+    font-size: 2rem;
+    color: #007bff;
+    margin-top: 60px;
+}
+
+.credits {
+    text-align: center;
+    font-size: 1rem;
+    color: #888;
+    margin-top: 60px;
+}
+
+/* Leaflet map container */
+#map {
+    width: 100%;
+    height: 600px; /* 調整地圖高度以適應大屏幕 */
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+/* Mobile-friendly adjustments */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .earthquake-card {
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .earthquake-card h2 {
+        font-size: 1.3rem;
+    }
+
+    .earthquake-card p {
+        font-size: 0.9rem;
+    }
+
+    #map {
+        height: 300px;
+    }
+
+    .loading {
+        font-size: 1.2rem;
+    }
+
+    .credits {
+        font-size: 0.7rem;
+        margin-top: 30px;
+    }
+}
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>地震報告</h1>
+        <h1>地震報告 ERV</h1>
+        <div id="map"></div>
         <div id="loading" class="loading">正在加載資料...</div>
         <div id="earthquakeData"></div>
         <div class="credits">
@@ -80,70 +146,112 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const apiUrls = [
             'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0016-001?Authorization=CWA-19B695DB-613E-496B-A962-8A9399FD36A3&format=JSON',
             'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization=CWA-19B695DB-613E-496B-A962-8A9399FD36A3&format=JSON&AreaName=%E5%AE%9C%E8%98%AD%E7%B8%A3,%E8%8A%B1%E8%93%AE%E7%B8%A3,%E8%87%BA%E6%9D%B1%E7%B8%A3,%E6%BE%8E%E6%B9%96%E7%B8%A3,%E9%87%91%E9%96%80%E7%B8%A3,%E9%80%A3%E6%B1%9F%E7%B8%A3,%E8%87%BA%E5%8C%97%E5%B8%82,%E6%96%B0%E5%8C%97%E5%B8%82,%E6%A1%83%E5%9C%92%E5%B8%82,%E8%87%BA%E4%B8%AD%E5%B8%82,%E8%87%BA%E5%8D%97%E5%B8%82,%E9%AB%98%E9%9B%84%E5%B8%82,%E5%9F%BA%E9%9A%86%E5%B8%82,%E6%96%B0%E7%AB%B9%E7%B8%A3,%E6%96%B0%E7%AB%B9%E5%B8%82,%E8%8B%97%E6%A0%97%E7%B8%A3,%E5%BD%B0%E5%8C%96%E7%B8%A3,%E5%8D%97%E6%8A%95%E7%B8%A3,%E9%9B%B2%E6%9E%97%E7%B8%A3,%E5%98%89%E7%BE%A9%E7%B8%A3,%E5%98%89%E7%BE%A9%E5%B8%82,%E5%B1%8F%E6%9D%B1%E7%B8%A3'
         ];
 
-        function fetchEarthquakeData() {
-            Promise.all(apiUrls.map(url => fetch(url).then(response => response.json())))
-                .then(dataArrays => {
-                    let earthquakes = [];
+        const map = L.map('map').setView([23.5, 121], 7);  // 初始位置設為台灣中心
 
-                    dataArrays.forEach(data => {
-                        const records = data.records.Earthquake || [];
-                        earthquakes = earthquakes.concat(records);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+function getColor(magnitude) {
+    return magnitude >= 8.0 ? '#6a0dad' :  // 紫色
+           magnitude >= 7.0 ? '#ff0000' :  // 紅色
+           magnitude >= 6.0 ? '#ff6600' :  // 橙色
+           magnitude >= 5.0 ? '#00ff00' :  // 綠色
+           magnitude >= 4.0 ? '#0000ff' :  // 藍色
+                              '#cccccc';  // 灰色
+}
+
+function getRadius(magnitude) {
+    return magnitude >= 8.0 ? 100000 :  // 紫色
+           magnitude >= 7.0 ? 75000 :   // 紅色
+           magnitude >= 6.0 ? 50000 :   // 橙色
+           magnitude >= 5.0 ? 30000 :   // 綠色
+                              15000;   // 藍色
+}
+
+// 取消使用圓圈，改用標記
+function fetchEarthquakeData() {
+    Promise.all(apiUrls.map(url => fetch(url).then(response => response.json())))
+        .then(dataArrays => {
+            let earthquakes = [];
+
+            dataArrays.forEach(data => {
+                const records = data.records.Earthquake || [];
+                earthquakes = earthquakes.concat(records);
+            });
+
+            // 排序
+            earthquakes.sort((a, b) => {
+                const dateA = new Date(a.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
+                const dateB = new Date(b.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
+                return dateB - dateA;
+            });
+
+            const output = earthquakes.map((earthquake, index) => {
+                const earthquakeNo = String(earthquake.EarthquakeNo);
+                const earthquakeNoDisplay = earthquakeNo === '113000' ? '小區域有感地震' : earthquakeNo || '無編號';
+                const earthquakeInfo = earthquake.EarthquakeInfo || {};
+                const originTime = earthquakeInfo.OriginTime || '無資料';
+                const focalDepth = earthquakeInfo.FocalDepth !== undefined ? earthquakeInfo.FocalDepth.toFixed(2) + ' 公里' : '無資料';
+                const earthquakeMagnitude = earthquakeInfo.EarthquakeMagnitude || {};
+                const magnitudeValue = earthquakeMagnitude.MagnitudeValue || '無資料';
+                const epicenter = earthquakeInfo.Epicenter || {};
+                const location = epicenter.Location || '無資料';
+                const epicenterLatitude = parseFloat(epicenter.EpicenterLatitude) || 0;
+                const epicenterLongitude = parseFloat(epicenter.EpicenterLongitude) || 0;
+                const reportImageURI = earthquake.ReportImageURI || '';
+
+                // 在地圖上添加震中標記
+                const marker = L.marker([epicenterLatitude, epicenterLongitude], {
+                    icon: L.divIcon({
+                        className: 'red-x-icon',
+                        html: 'X'
+                    })
+                }).addTo(map);
+
+                // 點擊事件: 滾動到相應的地震報告區塊
+                marker.on('click', function() {
+                    document.getElementById(`earthquake-${index}`).scrollIntoView({
+                        behavior: 'smooth'
                     });
-
-                    // 排序
-                    earthquakes.sort((a, b) => {
-                        const dateA = new Date(a.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
-                        const dateB = new Date(b.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
-                        return dateB - dateA;
-                    });
-
-                    const output = earthquakes.map(earthquake => {
-                        const earthquakeNo = String(earthquake.EarthquakeNo);
-                        const earthquakeNoDisplay = earthquakeNo === '113000' ? '小區域有感地震' : earthquakeNo || '無編號';
-                        const earthquakeInfo = earthquake.EarthquakeInfo || {};
-                        const originTime = earthquakeInfo.OriginTime || '無資料';
-                        const focalDepth = earthquakeInfo.FocalDepth !== undefined ? earthquakeInfo.FocalDepth.toFixed(2) + ' 公里' : '無資料';
-                        const earthquakeMagnitude = earthquakeInfo.EarthquakeMagnitude || {};
-                        const magnitudeValue = earthquakeMagnitude.MagnitudeValue || '無資料';
-                        const epicenter = earthquakeInfo.Epicenter || {};
-                        const location = epicenter.Location || '無資料';
-                        const epicenterLatitude = epicenter.EpicenterLatitude || '無資料';
-                        const epicenterLongitude = epicenter.EpicenterLongitude || '無資料';
-                        const reportImageURI = earthquake.ReportImageURI || '';
-
-                        return `
-                            <div class="earthquake-card">
-                                <h2>地震報告編號: ${earthquakeNoDisplay}</h2>
-                                <p><strong>報告類型:</strong> ${earthquake.ReportType || '無資料'}</p>
-                                <p><strong>報告內容:</strong> ${earthquake.ReportContent || '無資料'}</p>
-                                <p><strong>發生時間:</strong> ${originTime}</p>
-                                <p><strong>震源深度:</strong> ${focalDepth}</p>
-                                <p><strong>震度規模:</strong> ${magnitudeValue}</p>
-                                <p><strong>位置描述:</strong> ${location}</p>
-                                <p><strong>震中緯度:</strong> ${epicenterLatitude}</p>
-                                <p><strong>震中經度:</strong> ${epicenterLongitude}</p>
-                                ${reportImageURI ? `<p><strong>地震報告圖:</strong></p><img src="${reportImageURI}" alt="地震報告圖">` : ''}
-                            </div>
-                        `;
-                    }).join('');
-
-                    document.getElementById('earthquakeData').innerHTML = output;
-                    document.getElementById('loading').style.display = 'none';
-                })
-                .catch(error => {
-                    console.error('Fetch 錯誤:', error);
-                    document.getElementById('loading').innerText = `資料加載失敗，錯誤: ${error.message}`;
                 });
-        }
 
-        fetchEarthquakeData();
-        setInterval(fetchEarthquakeData, 10000);
+                // 回傳每個地震報告的 HTML
+                return `
+                    <div class="earthquake-card" id="earthquake-${index}">
+                        <h2>地震報告編號: ${earthquakeNoDisplay}</h2>
+                        <p><strong>報告類型:</strong> ${earthquake.ReportType || '無資料'}</p>
+                        <p><strong>報告內容:</strong> ${earthquake.ReportContent || '無資料'}</p>
+                        <p><strong>發生時間:</strong> ${originTime}</p>
+                        <p><strong>震源深度:</strong> ${focalDepth}</p>
+                        <p><strong>震度規模:</strong> ${magnitudeValue}</p>
+                        <p><strong>位置描述:</strong> ${location}</p>
+                        <p><strong>震中緯度:</strong> ${epicenterLatitude}</p>
+                        <p><strong>震中經度:</strong> ${epicenterLongitude}</p>
+                        ${reportImageURI ? `<p><strong>地震報告圖:</strong></p><img src="${reportImageURI}" alt="地震報告圖">` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('earthquakeData').innerHTML = output;
+            document.getElementById('loading').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Fetch 錯誤:', error);
+            document.getElementById('loading').innerText = `資料加載失敗，錯誤: ${error.message}`;
+        });
+}
+
+fetchEarthquakeData();
+setInterval(fetchEarthquakeData, 10000);
+
     </script>
 </body>
 </html>
