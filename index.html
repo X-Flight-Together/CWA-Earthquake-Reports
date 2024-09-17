@@ -31,6 +31,9 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9); /* 添加半透明白色背景 */
+            border-radius: 15px;
+            box-shadow: var(--shadow);
         }
 
         h1 {
@@ -54,7 +57,7 @@
         }
 
         .earthquake-card {
-            background: var(--card-background);
+            background: rgba(255, 255, 255, 0.95); /* 使卡片背景略微透明 */
             border-radius: 15px;
             box-shadow: var(--shadow);
             padding: 25px;
@@ -97,22 +100,31 @@
             box-shadow: var(--shadow);
         }
 
-        .warning {
+        .marquee {
+            width: 100%;
+            overflow: hidden;
             background-color: #ff7675;
             color: #ffffff;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            box-shadow: var(--shadow);
+            padding: 10px 0;
         }
 
-        .warning i {
-            margin-right: 15px;
-            font-size: 24px;
+        .marquee-content {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 30s linear infinite;
+        }
+
+        .marquee-content:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes marquee {
+            0% {
+                transform: translateX(100%);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
         }
 
         #map {
@@ -253,18 +265,57 @@
             fill: #ff0000;
             fill-opacity: 0.2;
         }
+
+        .filter-container {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .filter-container label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #locationFilter {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid var(--primary-color);
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
     <div id="loading-screen">
         <div class="loading-bar"></div>
     </div>
-    <div class="warning">
-        <i class="fas fa-exclamation-triangle" style="font-size: 24px; color: #ff0000; margin-right: 10px;"></i>
-        <span>嘉義地區最近常發生地震，請嘉義地區用戶注意!</span>
+    <div class="marquee">
+        <div class="marquee-content">
+            <i class="fas fa-exclamation-triangle" style="font-size: 24px; color: #ffffff; margin-right: 10px;"></i>
+            <span>嘉義地區最近常發生地震，請嘉義地區用戶注意！</span>
+            <span style="margin: 0 20px;">|</span>
+            <i class="fas fa-info-circle" style="font-size: 24px; color: #ffffff; margin-right: 10px;"></i>
+            <span>地震時請保持冷靜，遵循「趴下、掩護、穩住」原則。</span>
+            <span style="margin: 0 20px;">|</span>
+            <i class="fas fa-home" style="font-size: 24px; color: #ffffff; margin-right: 10px;"></i>
+            <span>請確保家中有足夠的緊急用品，如飲用水、乾糧、手電筒等。</span>
+            <span style="margin: 0 20px;">|</span>
+            <i class="fas fa-phone" style="font-size: 24px; color: #ffffff; margin-right: 10px;"></i>
+            <span>緊急救援電話：119</span>
+        </div>
     </div>
     <div class="container">
         <h1>地震報告 ERV</h1>
+        <div class="filter-container">
+            <label for="locationFilter">篩選震央所在地：</label>
+            <select id="locationFilter">
+                <option value="">全部地區</option>
+                <!-- 這裡通過 JavaScript 動態添加選項 -->
+            </select>
+            <label for="expTechFilter" style="margin-left: 20px;">
+                <input type="checkbox" id="expTechFilter"> 包括 ExpTech 地震報告圖
+            </label>
+        </div>
         <div id="map">
             <button id="returnButton">返回全部地震</button>
         </div>
@@ -333,11 +384,13 @@
         let markers = [];
         let intensityMarkers = [];
         let currentEarthquake = null;
+        let allEarthquakes = [];
+        let locationSet = new Set();
 
         function fetchEarthquakeData() {
             if (isLoading) {
                 document.getElementById('loading-screen').style.display = 'flex';  // 顯示讀取畫面
-                document.querySelectorAll('.leaflet-control').forEach(el => el.style.display = 'none');  // 隱藏 Leaflet 控件
+                document.querySelectorAll('.leaflet-control').forEach(el => el.style.display = 'none');  // 隱藏 Leaflet 件
                 isLoading = false;
             }
 
@@ -356,18 +409,51 @@
                         const dateB = new Date(b.EarthquakeInfo.OriginTime || '1970-01-01T00:00:00Z');
                         return dateB - dateA;
                     });
+                    
 
-                    // 清除之前的標記
-                    markers.forEach(marker => map.removeLayer(marker));
-                    intensityMarkers.forEach(marker => map.removeLayer(marker));
-                    markers = [];
-                    intensityMarkers = [];
+                    allEarthquakes = earthquakes;
+                    updateLocationFilter(earthquakes);
+                    displayEarthquakes(earthquakes);
+                })
+                .catch(error => {
+                    console.error('Fetch 錯誤:', error);
+                    document.getElementById('earthquakeData').innerHTML = `資料加載失敗，錯誤: ${error.message}`;
+                    document.getElementById('loading-screen').style.display = 'none';  // 隱藏讀取畫面
+                    document.querySelectorAll('.leaflet-control').forEach(el => el.style.display = 'block');  // 顯示 Leaflet 控件
+                });
+        }
 
-                    const output = earthquakes.map((earthquake, index) => {
+        const taiwanCounties = [
+            '臺北市', '新北市', '基隆市', '桃園市', '新竹市', '新竹縣', '宜蘭縣',
+            '臺中市', '苗栗縣', '彰化縣', '南投縣', '雲林縣', '嘉義市', '嘉義縣',
+            '臺南市', '高雄市', '屏東縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣'
+        ];
+
+        function updateLocationFilter(earthquakes) {
+            const locationFilter = document.getElementById('locationFilter');
+            let optionsHtml = '<option value="">全部地區</option>';
+            
+            taiwanCounties.forEach(county => {
+                optionsHtml += `<option value="${county}">${county}</option>`;
+            });
+            
+            locationFilter.innerHTML = optionsHtml;
+        }
+
+        let showOnlyExpTech = false;
+
+        function displayEarthquakes(earthquakes) {
+            // 清除之前的標記
+            markers.forEach(marker => map.removeLayer(marker));
+            intensityMarkers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            intensityMarkers = [];
+
+            const output = earthquakes.map((earthquake, index) => {
                         const earthquakeNo = String(earthquake.EarthquakeNo);
                         const earthquakeNoDisplay = earthquakeNo === '113000' ? '小區域有感地震' : earthquakeNo || '無編號';
                         const earthquakeInfo = earthquake.EarthquakeInfo || {};
-                        const originTime = earthquakeInfo.OriginTime || '無資��';
+                        const originTime = earthquakeInfo.OriginTime || '無資';
                         const focalDepth = earthquakeInfo.FocalDepth !== undefined ? earthquakeInfo.FocalDepth.toFixed(2) + ' 公里' : '資料';
                         const earthquakeMagnitude = earthquakeInfo.EarthquakeMagnitude || {};
                         const magnitudeValue = earthquakeMagnitude.MagnitudeValue || '無資料';
@@ -386,7 +472,7 @@
 
                         const reportContent = earthquake.ReportContent || '無資料';
                         const intensityInfo = getIntensityIcon(reportContent);
-
+ 
                         // 修改標記的添加方式
                         const marker = L.marker([epicenterLatitude, epicenterLongitude], {
                             icon: customIcon
@@ -422,6 +508,24 @@
                             });
                         }
 
+                        // 構建 ExpTech 地震報告圖的 URL
+                        const originTimeObj = new Date(originTime);
+                        const year = originTimeObj.getFullYear();
+                        const month = String(originTimeObj.getMonth() + 1).padStart(2, '0');
+                        const day = String(originTimeObj.getDate()).padStart(2, '0');
+                        const hours = String(originTimeObj.getHours()).padStart(2, '0');
+                        const minutes = String(originTimeObj.getMinutes()).padStart(2, '0');
+                        const seconds = String(originTimeObj.getSeconds()).padStart(2, '0');
+                        let expTechReportUrl = '';
+                        if (earthquakeNo !== '113000') {
+                            expTechReportUrl = `https://api-1.exptech.dev/file/images/report/${earthquakeNo}-${year}-${month}${day}-${hours}${minutes}${seconds}.jpg`;
+                        }
+
+                        // 檢查是否應該顯示這個地震報告
+                        if (showOnlyExpTech && earthquakeNo === '113000') {
+                            return ''; // 如果只顯示有 ExpTech 報告的地震，則跳過小區域有感地震
+                        }
+
                         // 回傳每個地震報告的 HTML
                         return `
                             <div class="earthquake-card" id="earthquake-${index}">
@@ -443,24 +547,24 @@
                                 <p><strong>震中緯度:</strong> ${epicenterLatitude}</p>
                                 <p><strong>震中經度:</strong> ${epicenterLongitude}</p>
                                 ${reportImageURI ? `<p><strong>地震報告圖:</strong></p><img src="${reportImageURI}" alt="地震報告圖">` : ''}
+                                ${earthquakeNo !== '113000' ? `
+                                <p><strong>ExpTech 地震報告圖:</strong></p>
+                                <img src="${expTechReportUrl}" alt="ExpTech 地震報告圖" onerror="this.onerror=null; this.style.display='none';">
+                                ` : ''}
                             </div>
                         `;
-                    }).join('');
+                    }).filter(html => html !== '').join(''); // 過濾掉空字符串
 
                     document.getElementById('earthquakeData').innerHTML = output;
+
+                    // 更新地圖上的標記
+                    updateMapMarkers(earthquakes);
 
                     // 隱藏讀取畫面
                     setTimeout(() => {
                         document.getElementById('loading-screen').style.display = 'none';
                         document.querySelectorAll('.leaflet-control').forEach(el => el.style.display = 'block');  // 顯示 Leaflet 控件
                     }, 3000);
-                })
-                .catch(error => {
-                    console.error('Fetch 錯誤:', error);
-                    document.getElementById('earthquakeData').innerHTML = `資料加載失敗，錯誤: ${error.message}`;
-                    document.getElementById('loading-screen').style.display = 'none';  // 隱藏讀取畫面
-                    document.querySelectorAll('.leaflet-control').forEach(el => el.style.display = 'block');  // 顯示 Leaflet 控件
-                });
         }
 
         // 獲取地區坐標的函數（這裡需要實際的地理數據）
@@ -521,7 +625,7 @@
             return coordinates[areaName] || null;
         }
 
-        // 添加新函數來顯示地震詳情
+        // 添加函數來顯示地震詳情
         function showEarthquakeDetails(earthquake, index) {
             // 隱藏所有地震卡片
             document.querySelectorAll('.earthquake-card').forEach(card => {
@@ -540,13 +644,13 @@
             // 更新當前地震
             currentEarthquake = earthquake;
 
-            // 清除所有標記
+            // 清除所有標
             markers.forEach(marker => map.removeLayer(marker));
             intensityMarkers.forEach(marker => map.removeLayer(marker));
             markers = [];
             intensityMarkers = [];
 
-            // 只添加當前地震的標記
+            // 添加當前地震的標記
             const customIcon = L.icon({
                 iconUrl: 'https://i.imgur.com/FjJMJpg.png',
                 iconSize: [32, 32],
@@ -590,6 +694,72 @@
             }
         }
 
+        function updateMapMarkers(earthquakes) {
+            // 清除之前的標記
+            markers.forEach(marker => map.removeLayer(marker));
+            intensityMarkers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            intensityMarkers = [];
+
+            earthquakes.forEach((earthquake, index) => {
+                const epicenter = earthquake.EarthquakeInfo.Epicenter || {};
+                const epicenterLatitude = parseFloat(epicenter.EpicenterLatitude) || 0;
+                const epicenterLongitude = parseFloat(epicenter.EpicenterLongitude) || 0;
+
+                const customIcon = L.icon({
+                    iconUrl: 'https://i.imgur.com/FjJMJpg.png',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16],
+                    popupAnchor: [0, -16]
+                });
+
+                const marker = L.marker([epicenterLatitude, epicenterLongitude], {
+                    icon: customIcon
+                }).addTo(map);
+
+                marker.on('click', function() {
+                    showEarthquakeDetails(earthquake, index);
+                });
+
+                markers.push(marker);
+            });
+
+            // 調整地圖視圖以顯示所有標記
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds());
+            }
+        }
+
+        document.getElementById('locationFilter').addEventListener('change', function() {
+            const selectedLocation = this.value;
+            filterEarthquakes();
+        });
+
+        document.getElementById('expTechFilter').addEventListener('change', function() {
+            showOnlyExpTech = this.checked;
+            filterEarthquakes();
+        });
+
+        function filterEarthquakes() {
+            const selectedLocation = document.getElementById('locationFilter').value;
+            let filteredEarthquakes = allEarthquakes;
+
+            if (selectedLocation) {
+                filteredEarthquakes = filteredEarthquakes.filter(eq => 
+                    eq.EarthquakeInfo.Epicenter.Location.includes(selectedLocation)
+                );
+            }
+
+            if (showOnlyExpTech) {
+                filteredEarthquakes = filteredEarthquakes.filter(eq => 
+                    eq.EarthquakeNo !== '113000'
+                );
+            }
+
+            displayEarthquakes(filteredEarthquakes);
+        }
+
         fetchEarthquakeData();
         setInterval(fetchEarthquakeData, 60000);
 
@@ -619,7 +789,7 @@
         // 添加回到頂部按鈕的功能
         const backToTopButton = document.getElementById("backToTop");
 
-        // 當用戶滾動超過 300px 時顯示按鈕
+        // 當用戶滾動過 300px 時顯示按鈕
         window.onscroll = function() {
             if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
                 backToTopButton.style.display = "block";
