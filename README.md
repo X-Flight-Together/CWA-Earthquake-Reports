@@ -1,2 +1,2 @@
-# CWA-Earthquake-Reports
-A Web Page that Display the Real-Time Earthquake Reports by CWA
+# 地震報告 ERV - 即時的地震報告App
+
